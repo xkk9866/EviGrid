@@ -1,0 +1,42 @@
+# Manuscripts and publication materials
+paper/
+papers/
+SpringNature/
+Neurocomputing/
+*.tex
+*.bib
+*.pdf
+*.eps
+*.svg
+# Local credentials and environments
+.env
+.env.*
+!.env.example
+*credentials*
+*.pem
+*.key
+算力服务器.txt
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+# Downloaded corpora, generated results, checkpoints and indexes
+/data/
+/models/
+models_up/
+ckpt/
+checkpoints/
+runs/
+logs/
+results/
+preds/
+*.pt
+*.pth
+*.safetensors
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.jsonl
+*.gz
+*.zip
