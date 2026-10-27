@@ -1,30 +1,58 @@
 # EviGrid
 
-Joint answer selection and adaptive stopping for retrieval-augmented generation.
+EviGrid selects an answer and decides whether to continue retrieving evidence. It compares answer drafts against the accumulated evidence in a grid, then estimates how much another retrieval step could improve the answer.
 
-This repository publishes the project's implementation, training, retrieval, evaluation and experiment-launch code. Manuscripts, submission documents, publication figures and their typesetting scripts are excluded.
+## Code layout
 
-## Code map
+| Path | Purpose |
+| --- | --- |
+| `code/grid.py` | Grid model, training and prediction |
+| `code/common.py` | Dataset definitions, trajectory loading and paths |
+| `code/prepare_data.py`, `code/rollout.py` | Corpus preparation and retrieval trajectories |
+| `code/lik_score.py` | Answer-likelihood features |
+| `code/calibrate.py` | Calibration of answer values and retrieval gains |
+| `code/grid_ens.py`, `code/paired_ci.py` | Ensembles and paired uncertainty estimates |
+| `code/evaluate.py` | Answer-quality and retrieval-cost evaluation |
+| `release/code/`, `local/` | Additional code snapshots and utilities |
 
-- `code/grid.py`: answer-evidence grid controller.
-- `code/calibrate.py`, `grid_ens.py`, `evaluate.py`, `paired_ci.py`: calibration, ensembles and evaluation.
-- `code/prepare_data.py`, `rollout.py`, `lik_score.py`: data and retrieval trajectories.
-- `release/code/`: preserved code snapshot; generated release data and manuscript files are not included.
+The commands below use `code/`.
 
-## Environment and data
+## Environment and inputs
 
-The code uses Python and a GPU-oriented PyTorch/Transformers stack. Inspect the imports and command-line options of the selected entry point before installing dependencies. Historical snapshots and comparison implementations are retained; they are not all required for one experiment.
+The controller uses PyTorch, Transformers, NumPy and SciPy. Data preparation also uses pandas. Retrieval and reader stages have additional dependencies in their respective scripts.
 
-Download benchmark datasets and pretrained models from their original providers. The source release does not contain benchmark corpora, generated trajectories, trained weights or retrieval indexes. Some launch scripts use the original experiment directory layout, GPU assignments and model-cache paths; set these for your own machine before running them. No claim is made that a new machine reproduces the experiments without preparing these inputs.
+Run the examples in Bash from the repository root:
 
-## Remote execution
+```bash
+export ESRAG_ROOT="$PWD"
+```
 
-Remote helpers that previously embedded login details now read `SSH_HOST`, `SSH_PORT` (default 22), `SSH_USER` and optional `SSH_PASSWORD` from the environment. Set these locally, or use your SSH agent/key configuration. Do not commit credentials or local server information files.
+Prepare HotpotQA, 2WikiMultihopQA and MuSiQue from their original sources. In `code/prepare_data.py`, set `ROOT` to your local **data directory** and check the dataset-cache paths. This is separate from `ESRAG_ROOT`, which points to the **project directory**.
 
-## Included snapshots and third-party code
+The controller expects corpora under `data/proc/<dataset>/corpus.jsonl.gz` and trajectories under `traj/<trajectory-name>/<dataset>.jsonl.gz`. Trajectories contain the retrieval states, answer drafts and split labels. Generate them with the rollout and scoring scripts before training the controller.
 
-Source subdirectories retain their original relative paths. Where `repos/` is present, the included upstream source retains its existing LICENSE and NOTICE files. Those licenses apply to their respective components. No new license grant for the project's own code has been added in this release.
+## Train and calibrate
 
-## Release checks
+With trajectories named `qwen25-7b` prepared locally:
 
-Python source files were parsed for syntax, publication files were excluded, and the release was checked for embedded SSH credentials and common token/private-key patterns. Training and large-scale retrieval experiments were not rerun as part of packaging.
+```bash
+python code/grid.py train --tag g_full --traj qwen25-7b --seed 0
+mkdir -p results
+TRAJ=qwen25-7b python code/calibrate.py g_full
+```
+
+Training writes `models/grid_qwen25-7b_g_full.pt` and predictions to `preds/qwen25-7b/essn_g_full.json`. Calibration produces `essn_g_full_cal.json` in the same prediction directory and a summary under `results/`.
+
+To apply the trained controller to prepared trajectories:
+
+```bash
+python code/grid.py predict --tag g_full --traj qwen25-7b --src_traj qwen25-7b
+```
+
+Use `code/evaluate.py` for answer-quality and cost comparisons, selecting the prediction tag and splits through its command-line options. The default grid uses passage granularity; the `GRAN` environment variable selects the granularity for other configurations.
+
+Datasets, trajectories, trained weights and experiment outputs are prepared locally. The repository includes the implementation and experiment scripts, without manuscript files or publication-figure generators.
+
+## License
+
+A license for the project-specific code has not yet been specified.
